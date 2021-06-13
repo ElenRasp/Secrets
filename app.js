@@ -4,7 +4,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const app = express();
 const mongoose = require("mongoose");
-
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 app.set('view engine', 'ejs');
 
 app.use(bodyParser.urlencoded({
@@ -36,37 +37,43 @@ app.get("/register", function(req, res) {
 
 app.post("/register", function(req, res) {
 
-const user = new User({
-	username: req.body.username,
-	password: req.body.password
-})
-user.save(function(err) {
-	if (err) {
-		console.log(err);
-	} else {
-		res.render("secrets");
-	}
-});
+	bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+		const user = new User({
+			username: req.body.username,
+			password: hash
+		});
+		user.save(function(err) {
+			if (err) {
+				console.log(err);
+			} else {
+				res.render("secrets");
+			}
+		});
+	});
 });
 
 app.post("/login", function(req, res) {
-const username = req.body.username;
-const password = req.body.password;
+	const username = req.body.username;
+	const password = req.body.password;
 
-User.findOne({
-	username: username
-}, function(err, foundUser) {
-	if (err) {
-		console.log(err)
-	}
-	if (foundUser) {
-		if (password === foundUser.password) {
-			res.render("secrets");
+	User.findOne({
+		username: username
+	}, function(err, foundUser) {
+		if (err) {
+			console.log(err)
 		}
-	}else{
-res.send("password is not found")
-}
-});
+		if (foundUser) {
+			bcrypt.compare(password, foundUser.password, function(err, result) {
+				// result == true
+				if (result === true) {
+					res.render("secrets");
+				} else {
+					res.send("password is not found")
+				}
+			});
+		}
+
+	});
 });
 
 
